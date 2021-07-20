@@ -48,7 +48,7 @@ class BaseChart:
 
         cleanDatasets = ChartUtils.cleanClass(self.data)
 
-        subSets = dict([(x, cleanDatasets[x]) for x in cleanDatasets if isinstance(cleanDatasets[x], BaseChartDataClass)])
+        subSets = dict([(x, cleanDatasets[x]) for x in cleanDatasets if isinstance(cleanDatasets[x], BaseChartData)])
         subFunc = [x for x in cleanDatasets if inspect.isfunction(cleanDatasets[x])]
 
         if subFunc:
