@@ -1,7 +1,9 @@
 import inspect
 import json
+from functools import cached_property
 from pychartjs.utils import ChartUtils, ChartType, FunctionsNotAllowedError
 from pychartjs.Opt import General
+
 
 class BaseChart:
 
@@ -19,7 +21,6 @@ class BaseChart:
     class pluginOptions:
         pass
 
-
     def getLabels(self):
         cleanLabels = ChartUtils.cleanClass(self.labels, list)
 
@@ -32,11 +33,10 @@ class BaseChart:
             elif hasattr(cleanData[next(iter(cleanData))], 'data'):
                 for i in range(len(cleanData[next(iter(cleanData))].data)):
                     cleanLabels.append(f'Data{i}')
-        if len(cleanLabels) == 1: 
+        if len(cleanLabels) == 1:
             cleanLabels = cleanLabels[0]
 
         return {'labels': cleanLabels}
-
 
     def getOptions(self):
 
@@ -44,12 +44,11 @@ class BaseChart:
         cleanOptions.update(self.getPluginOptions())
         return {'options': cleanOptions}
 
-
     def getDatasets(self):  # TODO:: Add catch for misnamed subsets
 
         cleanDatasets = ChartUtils.cleanClass(self.data)
 
-        subSets = dict([(x, cleanDatasets[x]) for x in cleanDatasets if inspect.isclass(cleanDatasets[x])])
+        subSets = dict([(x, cleanDatasets[x]) for x in cleanDatasets if isinstance(cleanDatasets[x], BaseChartDataClass)])
         subFunc = [x for x in cleanDatasets if inspect.isfunction(cleanDatasets[x])]
 
         if subFunc:
@@ -67,7 +66,6 @@ class BaseChart:
 
         return {'datasets': content}
 
-
     def getPluginOptions(self):
         cleanPluginOptions = ChartUtils.cleanClass(self.pluginOptions)
 
@@ -84,7 +82,6 @@ class BaseChart:
 
         return {'plugins': content}
 
-
     def get(self):
 
         datastructure = {}
@@ -100,3 +97,41 @@ class BaseChart:
         js = json.dumps(build)
         js = js.replace('"<<', '').replace('>>"', '')
         return js
+
+
+class BaseChartSubclass:
+    def __init__(self, **kwargs):
+        for k, v in kwargs.items():
+            self.__setattr__(k, v)
+        for method in self.__dir__():
+            if method[:4] == 'get_':
+                self.__setattr__(method[4:], self.__getattribute__(method)())
+
+
+class BaseChartData(BaseChartSubclass):
+
+    def get_data(self):
+        raise NotImplementedError
+
+    def get_labels(self):
+        raise NotImplementedError
+
+
+class BaseSmartChart(BaseChart):
+
+    def __init__(self, data_class, name, **kwargs):
+        self.data_class = data_class
+        self.name = name
+        self.kwargs = kwargs
+
+    @cached_property
+    def data(self):
+        return self.data_class(**self.kwargs)
+
+    @cached_property
+    def data_name(self):
+        return self.name + "-data"
+
+    @cached_property
+    def labels(self, **kwargs):
+        return BaseChartSubclass(labels=self.data.get_labels())
